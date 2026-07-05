@@ -247,6 +247,33 @@ async def shared_with_me(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_saved_item(update, context, row)
 
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Logs errors and, if possible, tells the user something went wrong."""
+    logger.error("Exception while handling an update:", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                "⚠️ Something went wrong processing that command. The issue has been logged."
+            )
+        except Exception:
+            pass
+
+
+async def setup_command_menu(app):
+    """Registers the tappable command menu users see when they tap '/' or the menu button."""
+    from telegram import BotCommand
+    await app.bot.set_my_commands([
+        BotCommand("start", "Get started / see instructions"),
+        BotCommand("list", "Show your recently saved items"),
+        BotCommand("search", "Search your saved items by keyword"),
+        BotCommand("get", "Retrieve a saved item by its ID"),
+        BotCommand("delete", "Delete a saved item by its ID"),
+        BotCommand("share", "Share a saved item with another user"),
+        BotCommand("shared", "See items others have shared with you"),
+        BotCommand("privacy", "Read the data & privacy policy"),
+    ])
+
+
 # ---------- APP SETUP ----------
 
 def main():
@@ -257,7 +284,7 @@ def main():
     for admin_id in ADMIN_IDS:
         db.add_admin(admin_id)
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).post_init(setup_command_menu).build()
 
     # User commands
     app.add_handler(CommandHandler("start", start))
@@ -271,6 +298,8 @@ def main():
 
     # Admin commands (registered from admin.py)
     admin_module.register_admin_handlers(app, ADMIN_IDS)
+
+    app.add_error_handler(error_handler)
 
     # Catch-all: any non-command message/forward gets saved
     app.add_handler(MessageHandler(
