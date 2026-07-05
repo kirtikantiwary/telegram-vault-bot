@@ -144,9 +144,45 @@ def register_admin_handlers(app: Application, admin_ids):
 
         await update.message.reply_text(f"Broadcast sent: {sent} ok, {failed} failed.")
 
+    @admin_only(admin_ids)
+    async def view_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Admin: view/download the actual saved file for any message, by ID.
+        Usage: /viewfile <msg_id>
+        """
+        if not context.args or not context.args[0].isdigit():
+            await update.message.reply_text("Usage: /viewfile <msg_id> (get the id from /viewall)")
+            return
+
+        msg_id = int(context.args[0])
+        row = db.get_message(msg_id)
+
+        if not row:
+            await update.message.reply_text("No message found with that ID.")
+            return
+
+        chat_id = update.effective_chat.id
+        caption = f"#{row['msg_id']} from user {row['owner_id']} | {row['content_type']}"
+        if row["content_text"]:
+            caption += f"\n\n{row['content_text'][:500]}"
+
+        try:
+            if row["content_type"] == "text":
+                await update.message.reply_text(caption)
+            elif row["content_type"] == "photo":
+                await context.bot.send_photo(chat_id, row["file_id"], caption=caption)
+            elif row["content_type"] == "document":
+                await context.bot.send_document(chat_id, row["file_id"], caption=caption)
+            elif row["content_type"] == "video":
+                await context.bot.send_video(chat_id, row["file_id"], caption=caption)
+            elif row["content_type"] == "voice":
+                await context.bot.send_voice(chat_id, row["file_id"], caption=caption)
+        except Exception as e:
+            await update.message.reply_text(f"Couldn't retrieve file: {e}")
+
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("traffic", traffic))
     app.add_handler(CommandHandler("viewall", view_all))
+    app.add_handler(CommandHandler("viewfile", view_file))
     app.add_handler(CommandHandler("viewuser", view_user))
     app.add_handler(CommandHandler("ban", ban))
     app.add_handler(CommandHandler("unban", unban))
