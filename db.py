@@ -222,10 +222,10 @@ def get_stats():
         stats["by_type"] = {row["content_type"]: row["n"] for row in c.fetchall()}
 
         c.execute("""
-            SELECT user_id, COUNT(*) as n FROM messages
-            GROUP BY user_id ORDER BY n DESC LIMIT 5
+            SELECT owner_id, COUNT(*) as n FROM messages
+            GROUP BY owner_id ORDER BY n DESC LIMIT 5
         """)
-        stats["top_users"] = [(row["user_id"], row["n"]) for row in c.fetchall()]
+        stats["top_users"] = [(row["owner_id"], row["n"]) for row in c.fetchall()]
 
         return stats
 
